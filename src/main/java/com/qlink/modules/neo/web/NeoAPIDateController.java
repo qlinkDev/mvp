@@ -1,10 +1,8 @@
 package com.qlink.modules.neo.web;
 
 import java.net.URLDecoder;
-
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,26 +13,24 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
-
 import com.qlink.common.utils.DateUtils;
 import com.qlink.common.web.BaseController;
-import com.qlink.modules.neo.service.NeoDateService;
+import com.qlink.modules.neo.service.NeoService;
 import com.qlink.modules.sys.service.LogService;
 import com.qlink.modules.utils.ReturnCode;
-
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiParam;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
 @Controller
-@RequestMapping(value = "/api/neo", produces = "application/json")
+@RequestMapping(value = "/api/dapp", produces = "application/json")
 @Api(value = "/neoApi", description = "neoRPC调用接口")
-public class NeoAPIController extends BaseController {
-	public static Logger logger = LoggerFactory.getLogger(NeoAPIController.class);
+public class NeoAPIDateController extends BaseController {
+	public static Logger logger = LoggerFactory.getLogger(NeoAPIDateController.class);
 	
 	@Autowired
-	private NeoDateService neoService;
+	private NeoService neoService;
 	
 	@Autowired
 	private LogService logService;

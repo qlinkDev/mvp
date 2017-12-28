@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 
 import com.qlink.common.persistence.BaseDao;
 import com.qlink.common.persistence.Page;
+import com.qlink.common.persistence.Parameter;
 import com.qlink.modules.neo.condition.NeoSsidCondition;
 import com.qlink.modules.neo.entity.NeoSsid;
 
@@ -23,8 +24,8 @@ public class NeoSsidDao extends BaseDao<NeoSsid> {
 	 * @date 2017年12月9日 下午9:43:18 
 	 */ 
 	public NeoSsid getNeoSsidBySid(String sid) {
-		String hql = "From NeoSsid n where n.ssid = '" + sid+"'";
-		List<NeoSsid> list = find(hql);
+		String hql = "From NeoSsid n where n.ssid =:p1";
+		List<NeoSsid> list = find(hql, new Parameter(sid));
 		if (list != null && list.size() > 0) {
 			return list.get(0);
 		}

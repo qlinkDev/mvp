@@ -79,6 +79,7 @@ public class ReturnCode {
 	public final static String ERR_61451 = "Lack of parameter or parameter error(invalid parameter)";
 	public final static String ERR_61457 = "无效头像文件类型(invalid file type)";
 	public final static String ERR_61450 = "system error";
+	public final static String ERR_61456 = "system tips";
 	public final static String ERR_61500 = "日期格式错误";
 	public final static String ERR_61501 = "日期范围错误";
 	public final static String ERR_70001 = "找不到该订单号对应的订单!";

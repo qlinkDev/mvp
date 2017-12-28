@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 
 import com.qlink.common.persistence.BaseDao;
 import com.qlink.common.persistence.Page;
+import com.qlink.common.persistence.Parameter;
 import com.qlink.modules.neo.condition.NeoRecordCondition;
 import com.qlink.modules.neo.entity.NeoRecord;
 
@@ -23,8 +24,8 @@ public class NeoRecordDao extends BaseDao<NeoRecord>{
 	 * @date 2017年12月9日 下午9:43:18 
 	 */ 
 	public NeoRecord getNeoRecordByRid(String rid) {
-		String hql = "From NeoRecord n where n.recordKey = '" + rid+"'";
-		List<NeoRecord> list = find(hql);
+		String hql = "From NeoRecord n where n.recordKey = :p1";
+		List<NeoRecord> list = find(hql, new Parameter(rid));
 		if (list != null && list.size() > 0) {
 			return list.get(0);
 		}

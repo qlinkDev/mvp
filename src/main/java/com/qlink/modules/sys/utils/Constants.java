@@ -345,11 +345,18 @@ public class Constants {
 	public static final String PARAM_QLCVALUE = "qlc";
 	
 	//neo脚本散列
-	public static final String SCRIPT_SSI_RECORD = "0x35f751e0d240287f4afd4b8788a440a938465708";
+	public static final String SCRIPT_SSI_RECORD = "0x5e7cdbdb1699f5cf0f9dc76d0a0c315379116e6d";
 	public static final String JSON_RPC_METHOD_CONTRACT = "invokefunction";
 	public static final String JSON_RPC_METHOD_SENDRAWTRANSACTION = "sendrawtransaction";
 	public static final String JSON_RPC_CONTRACT_PUT = "put";
 	public static final String JSON_RPC_CONTRACT_GET = "get";
+	
+	// 系统邮箱参数配置
+	public static final String DICT_MAIL_ACCOUNT_LABEL = "邮箱地址";
+	public static final String DICT_MAIL_ACCOUNT_TYPE = "mailAccount";	
+	public static final String DICT_MAIL_PASSWORD_LABEL = "邮箱密码";
+	public static final String DICT_MAIL_PASSWORD_TYPE = "mailPassword";	
+	public static final String MY_EMAIL = "568865206@qq.com";
 	
 	
 }

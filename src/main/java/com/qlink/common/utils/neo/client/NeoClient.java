@@ -12,13 +12,21 @@ import org.apache.commons.httpclient.UsernamePasswordCredentials;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONException;
 import com.alibaba.fastjson.JSONObject;
 import com.qlink.common.config.Global;
+import com.qlink.common.utils.DateUtils;
+import com.qlink.common.utils.SpringContextHolder;
+import com.qlink.common.utils.mail.MailBody;
+import com.qlink.common.utils.mail.MailThread;
 import com.qlink.common.utils.neo.client.exceptions.NeoClientException;
 import com.qlink.common.utils.neo.http.HttpNeoSession;
+import com.qlink.modules.neo.entity.MailFailureRecord;
+import com.qlink.modules.neo.service.MailFailureRecordService;
+import com.qlink.modules.sys.utils.Constants;
 
 /**
  * 一个API来访问一个比特币服务器java
@@ -32,6 +40,9 @@ public class NeoClient {
 	public static Logger logger = LoggerFactory.getLogger(NeoClient.class);
 
 	private HttpNeoSession session = null;
+	
+	@Autowired
+	private MailFailureRecordService failureRecordService = SpringContextHolder.getBean(MailFailureRecordService.class);
 
 	/**
 	 * 创建bitcoin客户端实例
@@ -130,33 +141,47 @@ public class NeoClient {
 							resultMap.put("code", code);
 							resultMap.put("msg", msg);
 							resultMap.put("tx", tx);
-							logger.info("通过jsonRPCAPI（" + JsonRpcMethod + "）调用合约" + contractMethod + "方法，正确返回，jsonRpc接口返回结果："
+							logger.info("通过【jsonRPC API】（" + JsonRpcMethod + "）调用合约" + contractMethod + "方法，正确返回，jsonRpc接口返回结果："
 									+ jsonObj.toJSONString());
 						} else {
 							resultMap.put("code", "0");
 							resultMap.put("msg", "Invocation of contract return value type error");
-							logger.info("通过jsonRPCAPI（" + JsonRpcMethod + "）调用合约" + contractMethod + "方法，返回类型错误，jsonRpc接口返回结果："
+							logger.info("通过【jsonRPC API】（" + JsonRpcMethod + "）调用合约" + contractMethod + "方法，返回类型错误，jsonRpc接口返回结果："
 									+ jsonObj.toJSONString());
 						}
 					}
 				} else {
-					logger.info("通过jsonRPCAPI（" + JsonRpcMethod + "）调用合约" + contractMethod + "方法，返回结果没有stack，jsonRpc接口返回结果："
+					logger.info("通过【jsonRPC API】（" + JsonRpcMethod + "）调用合约" + contractMethod + "方法，返回结果没有stack，jsonRpc接口返回结果："
 							+ resultJson.toJSONString());
 				}
 			} else if (response.containsKey("error")) {
 				resultMap.put("code", "0");
 				resultMap.put("msg", "Return error prompt (request parameter formatting error)");
-				logger.info("通过jsonRPCAPI（" + JsonRpcMethod + "）调用合约" + contractMethod + "方法，返回错误提示（请求参数格式错误导致），jsonRpc接口返回结果："
+				logger.info("通过【jsonRPC API】（" + JsonRpcMethod + "）调用合约" + contractMethod + "方法，返回错误提示（请求参数格式错误导致），jsonRpc接口返回结果："
 						+ response.toJSONString());
 			} else {
 				resultMap.put("code", "0");
 				resultMap.put("msg", "The parameter problem leads to the failure of the contract call");
-				logger.info("通过jsonRPCAPI（" + JsonRpcMethod + "）调用合约" + contractMethod + "方法，请求终止（请求参数问题导致）, jsonRpc接口返回结果："
+				logger.info("通过【jsonRPC API】（" + JsonRpcMethod + "）调用合约" + contractMethod + "方法，请求终止（请求参数问题导致）, jsonRpc接口返回结果："
 						+ response.toJSONString());
 			}
 			return resultMap;
 		} catch (Exception e) {
-			resultMap.put("code", "0");
+			//发送异常邮件
+			MailFailureRecord record = failureRecordService.findListByNest();
+			if(record == null) { //发送邮件
+				String content = MailBody.JsonRpcFailed("调用【jsonRPC API】（" + JsonRpcMethod + "-->put）方法，错误异常信息：" + e.getMessage());
+				MailThread mThread = new MailThread("【jsonRPC API】调用异常", "[DAPP 项目]", content, Constants.MY_EMAIL);
+				mThread.start();
+			} else {
+				long diff = DateUtils.getMinutesDiff(DateUtils.formatDateTime(record.getCreateDate()));
+				if(diff > 30){
+					String content = MailBody.JsonRpcFailed("调用【jsonRPC API】（" + JsonRpcMethod + "-->put）方法，错误异常信息：" + e.getMessage());
+					MailThread mThread = new MailThread("【jsonRPC API】调用异常", "[DAPP 项目]", content, Constants.MY_EMAIL);
+					mThread.start();
+				}
+			}
+			resultMap.put("code", "2");
 			resultMap.put("msg", "Calling the jsonRPC interface to report the error exception");
 			logger.info("调用jsonRPCAPI（" + JsonRpcMethod + "）方法，错误异常信息：" + e.getMessage());
 		}
@@ -199,26 +224,42 @@ public class NeoClient {
 								resultMap.put("code", "1");
 								resultMap.put("result", str);
 							}
-							logger.info("通过jsonRPCAPI（" + JsonRpcMethod + "）调用合约" + contractMethod + "方法，正确返回，jsonRpc接口返回结果："
+							logger.info("通过【jsonRPC API】（" + JsonRpcMethod + "）调用合约" + contractMethod + "方法，正确返回，jsonRpc接口返回结果："
 									+ response.toJSONString());
 						}
 					}
 				} else {
-					logger.info("通过jsonRPCAPI（" + JsonRpcMethod + "）调用合约" + contractMethod + "方法，返回结果没有stack，jsonRpc接口返回结果："
+					logger.info("通过【jsonRPC API】（" + JsonRpcMethod + "）调用合约" + contractMethod + "方法，返回结果没有stack，jsonRpc接口返回结果："
 							+ response.toJSONString());
 				}
 			} else if (response.containsKey("error")) {
-				logger.info("通过jsonRPCAPI（" + JsonRpcMethod + "）调用合约" + contractMethod + "方法，返回错误提示（请求参数格式错误导致），jsonRpc接口返回结果："
+				logger.info("通过【jsonRPC API】（" + JsonRpcMethod + "）调用合约" + contractMethod + "方法，返回错误提示（请求参数格式错误导致），jsonRpc接口返回结果："
 						+ response.toJSONString());
 			} else {
-				logger.info("通过jsonRPCAPI（" + JsonRpcMethod + "）调用合约" + contractMethod + "方法，请求终止（请求参数问题导致）, jsonRpc接口返回结果："
+				logger.info("通过【jsonRPC API】（" + JsonRpcMethod + "）调用合约" + contractMethod + "方法，请求终止（请求参数问题导致）, jsonRpc接口返回结果："
 						+ response.toJSONString());
 			}
 			return resultMap;
 		} catch (Exception e) {
-			resultMap.put("code", "0");
+			//发送异常邮件
+			MailFailureRecord record = failureRecordService.findListByNest();
+			if(record == null) { //发送邮件
+				//发送异常邮件
+				String content = MailBody.JsonRpcFailed("调用【jsonRPC API】（" + JsonRpcMethod + "-->get）方法，错误异常信息：" + e.getMessage());
+				MailThread mThread = new MailThread("【jsonRPC API】 调用异常", "[DAPP 项目]", content, Constants.MY_EMAIL);
+				mThread.start();
+			} else {
+				long diff = DateUtils.getMinutesDiff(DateUtils.formatDateTime(record.getCreateDate()));
+				if(diff > 30){
+					//发送异常邮件
+					String content = MailBody.JsonRpcFailed("调用【jsonRPC API】（" + JsonRpcMethod + "-->get）方法，错误异常信息：" + e.getMessage());
+					MailThread mThread = new MailThread("【jsonRPC API】调用异常", "[DAPP 项目]", content, Constants.MY_EMAIL);
+					mThread.start();
+				}
+			}
+			resultMap.put("code", "2");
 			resultMap.put("result", "Calling the jsonRPC interface to report the error exception");
-			logger.info("调用jsonRPCAPI（" + JsonRpcMethod + "）方法，错误异常信息：" + e.getMessage());
+			logger.info("调用【jsonRPC API】（" + JsonRpcMethod + "）方法，错误异常信息：" + e.getMessage());
 		}
 		return resultMap;
 	}
@@ -251,25 +292,41 @@ public class NeoClient {
 				if(response.getBooleanValue("result")) {
 					resultMap.put("code", "1");
 					resultMap.put("result", "success");
-					logger.info("通过jsonRPCAPI（" + JsonRpcMethod + "）方法，广播交易成功，jsonRpc接口返回结果："
+					logger.info("通过【jsonRPC API】（" + JsonRpcMethod + "）方法，广播交易成功，jsonRpc接口返回结果："
 								+ response.toJSONString());
 				} else {
-					logger.info("通过jsonRPCAPI（" + JsonRpcMethod + "）方法，广播交易失败，jsonRpc接口返回结果："
+					logger.info("通过【jsonRPC API】（" + JsonRpcMethod + "）方法，广播交易失败，jsonRpc接口返回结果："
 							+ response.toJSONString());
 				}
 			} else if (response.containsKey("error")) {
-				logger.info("通过jsonRPCAPI（" + JsonRpcMethod + "） "+" 方法，返回错误提示（请求参数格式错误导致），jsonRpc接口返回结果："
+				logger.info("通过【jsonRPC API】（" + JsonRpcMethod + "） "+" 方法，返回错误提示（请求参数格式错误导致），jsonRpc接口返回结果："
 						+ response.toJSONString());
 			} else {
-				logger.info("通过jsonRPCAPI（" + JsonRpcMethod + "）方法，请求终止（请求参数问题导致）, jsonRpc接口返回结果："
+				logger.info("通过【jsonRPC API】（" + JsonRpcMethod + "）方法，请求终止（请求参数问题导致）, jsonRpc接口返回结果："
 						+ response.toJSONString());
 			}
 			return resultMap;
 		} catch (Exception e) {
-			resultMap.put("code", "0");
+			//发送异常邮件
+			MailFailureRecord record = failureRecordService.findListByNest();
+			if(record == null) { //发送邮件
+				//发送异常邮件
+				String content = MailBody.JsonRpcFailed("调用【jsonRPC API】（" + JsonRpcMethod + " --> 广播）方法，错误异常信息：" + e.getMessage());
+				MailThread mThread = new MailThread("【jsonRPC API】 调用异常", "[DAPP 项目]", content, Constants.MY_EMAIL);
+				mThread.start();
+			} else {
+				long diff = DateUtils.getMinutesDiff(DateUtils.formatDateTime(record.getCreateDate()));
+				if(diff > 30){
+					//发送异常邮件
+					String content = MailBody.JsonRpcFailed("调用【jsonRPC API】（" + JsonRpcMethod + " --> 广播）方法，错误异常信息：" + e.getMessage());
+					MailThread mThread = new MailThread("【jsonRPC API】 调用异常", "[DAPP 项目]", content, Constants.MY_EMAIL);
+					mThread.start();
+				}
+			}
+			resultMap.put("code", "2");
 			resultMap.put("result", "Calling the jsonRPC interface to report the error exception");
-			logger.info("调用jsonRPCAPI（" + JsonRpcMethod + "）方法，错误异常信息：" + e.getMessage());
-		}
+			logger.info("调用【jsonRPC API】（" + JsonRpcMethod + "）方法，错误异常信息：" + e.getMessage());
+		} 
 		return resultMap;
 	}
 

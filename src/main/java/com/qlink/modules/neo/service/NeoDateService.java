@@ -1,7 +1,6 @@
 package com.qlink.modules.neo.service;
 
 import java.math.BigDecimal;
-import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
@@ -12,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.qlink.common.persistence.Page;
 import com.qlink.common.service.BaseService;
 import com.qlink.common.utils.DateUtils;
-import com.qlink.common.utils.neo.client.NeoClient;
 import com.qlink.modules.neo.condition.NeoRecordCondition;
 import com.qlink.modules.neo.condition.NeoSsidCondition;
 import com.qlink.modules.neo.dao.NeoRecordDao;
@@ -35,7 +33,7 @@ import net.sf.json.JSONObject;
  */
 @Service
 @Transactional(readOnly = true)
-public class NeoService extends BaseService {
+public class NeoDateService extends BaseService {
 
 	@Autowired
 	private NeoSsidDao neoSsidDao;
@@ -171,34 +169,19 @@ public class NeoService extends BaseService {
 			resObj.put(ApiUtils.MSG, ReturnCode.ERR_61451 + "|p2pId can't be empty!");
 			return resObj;
 		}
-		JSONObject tempJson = new JSONObject();
-		tempJson.put("ssId", ssId);
-		tempJson.put("mac", mac);
-		tempJson.put("p2pId", p2pId);
-		String val = tempJson.toString();
-		//调用接口
-		NeoClient neoClient = new NeoClient();
-		Map<String, String> map = neoClient.insertVal(Constants.SCRIPT_SSI_RECORD, Constants.JSON_RPC_METHOD_CONTRACT, Constants.JSON_RPC_CONTRACT_PUT, ssId, val);
-		String code = map.get("code");
-		String tx = map.get("tx");
-		if("1".equals(code)){  //区块链中没有重复的key,进行本地数据保存
-		   //调用接口 send
-			Map<String, String> sendMap = neoClient.sendrawtransaction(Constants.JSON_RPC_METHOD_SENDRAWTRANSACTION, tx);
-			String sendCode = sendMap.get("code");
-			if("1".equals(sendCode)){ //广播成功
-				NeoSsid neoSsid = new NeoSsid();
-				neoSsid.setSsid(ssId);
-				neoSsid.setMac(mac);
-				neoSsid.setP2pId(p2pId);
-				neoSsidDao.save(neoSsid);
-				resObj.put("ssId", ssId);
-			} else {
-				resObj.put("ssId", "");
-			}
-		} else { //区块链中存在可以
+		
+		//数据库中去查
+		NeoSsid existNeoSsid = neoSsidDao.getNeoSsidBySid(ssId);
+		if(existNeoSsid == null){  //没有进行数据保存
+			NeoSsid neoSsid = new NeoSsid();
+			neoSsid.setSsid(ssId);
+			neoSsid.setMac(mac);
+			neoSsid.setP2pId(p2pId);
+			neoSsidDao.save(neoSsid);
+			resObj.put("ssId", ssId);
+		} else { //存在
 			resObj.put(ApiUtils.CODE, "46005");
-			resObj.put(ApiUtils.MSG, map.get("msg"));
-			return resObj;
+			resObj.put(ApiUtils.MSG, "SSID exists");
 		}
 		return resObj;
 	}
@@ -224,36 +207,20 @@ public class NeoService extends BaseService {
 			resObj.put(ApiUtils.MSG, ReturnCode.ERR_61451 + "|ssid can't be empty!");
 			return resObj;
 		}
-		NeoClient neoClient = new NeoClient();
-		Map<String, String>  map = neoClient.queryByKey(Constants.SCRIPT_SSI_RECORD, Constants.JSON_RPC_METHOD_CONTRACT, Constants.JSON_RPC_CONTRACT_GET, ssId);
-		String code = map.get("code");
-		if("1".equals(code)){  //接口调用成功
-			//根据ssid检索neoSsid是否存在
-			NeoSsid existNeoSsid = neoSsidDao.getNeoSsidBySid(ssId);
-			JSONObject rs = new JSONObject();
-			if(existNeoSsid != null){
-				rs.put("ssId", existNeoSsid.getSsid());
-				rs.put("mac", existNeoSsid.getMac());
-				rs.put("p2pId", existNeoSsid.getP2pId());
-			} else {
-				String result = map.get("result");
-				if(StringUtils.isNotBlank(result)){
-					rs = JSONObject.fromObject(result);
-				} else {
-					rs.put("ssId", "");
-					rs.put("mac", "");
-					rs.put("p2pId", "");
-				}
-			}
+		//数据库中去查
+		NeoSsid existNeoSsid = neoSsidDao.getNeoSsidBySid(ssId);
+		
+		JSONObject rs = new JSONObject();
+		if(existNeoSsid != null){
+			rs.put("ssId", existNeoSsid.getSsid());
+			rs.put("mac", existNeoSsid.getMac());
+			rs.put("p2pId", existNeoSsid.getP2pId());
 			resObj.put(ApiUtils.DATA, rs);
-		} else if("0".equals(code)){
-			resObj.put("code", "61456");
-			resObj.put("msg", ReturnCode.ERR_61456 + ":" +"SSID does not exist! ");
-			return resObj;
-		} else { //接口调用不成功
-			resObj.put("code", "61450");
-			resObj.put("msg", ReturnCode.ERR_61450 + ":" +"Interface call failure!");
-			return resObj;
+		} else {
+			rs.put("ssId", "");
+			rs.put("mac", "");
+			rs.put("p2pId", "");
+			resObj.put(ApiUtils.DATA, rs);
 		}
 		return resObj;
 	}
@@ -324,39 +291,22 @@ public class NeoService extends BaseService {
 			resObj.put(ApiUtils.MSG, ReturnCode.ERR_61451 + "|qlc format not correct!");
 			return resObj;
 		}
-		JSONObject tempJson = new JSONObject();
-		tempJson.put("recordId", recordId);
-		tempJson.put("addressFrom", addressFrom);
-		tempJson.put("formP2pId", formP2pId);
-		tempJson.put("addressTo", addressTo);
-		tempJson.put("toP2pId", toP2pId);
-		tempJson.put("qlc", qlcValue);
-		tempJson.put("time", DateUtils.getDate(DateUtils.YYYY_MM_DD_HH_MM_SS));
-		String val = tempJson.toString();
-		//调用接口
-		NeoClient neoClient = new NeoClient();
-		Map<String, String> map = neoClient.insertVal(Constants.SCRIPT_SSI_RECORD, Constants.JSON_RPC_METHOD_CONTRACT, Constants.JSON_RPC_CONTRACT_PUT, recordId, val);
-		String code = map.get("code");
-		String tx = map.get("tx");
-		if("1".equals(code)){  //接口调用成功
-			//调用接口 send
-			Map<String, String> sendMap = neoClient.sendrawtransaction(Constants.JSON_RPC_METHOD_SENDRAWTRANSACTION, tx);
-			String sendCode = sendMap.get("code");
-			if("1".equals(sendCode)){ //广播成功
-				NeoRecord neoRecord = new NeoRecord();
-				neoRecord.setRecordKey(recordId);
-				neoRecord.setAddressFrom(addressFrom);
-				neoRecord.setFormP2pId(formP2pId);
-				neoRecord.setAddressTo(addressTo);
-				neoRecord.setToP2pId(toP2pId);
-				neoRecord.setQlc(new BigDecimal(qlcValue));
-				neoRecordDao.save(neoRecord);
-				resObj.put("recordId", recordId);
-			}
-		} else { //接口调用不成功
+		
+		//数据库中去查
+		NeoRecord existNeoRecord = neoRecordDao.getNeoRecordByRid(recordId);
+		if(existNeoRecord == null){  //没有进行数据保存
+			NeoRecord neoRecord = new NeoRecord();
+			neoRecord.setRecordKey(recordId);
+			neoRecord.setAddressFrom(addressFrom);
+			neoRecord.setFormP2pId(formP2pId);
+			neoRecord.setAddressTo(addressTo);
+			neoRecord.setToP2pId(toP2pId);
+			neoRecord.setQlc(new BigDecimal(qlcValue));
+			neoRecordDao.save(neoRecord);
+			resObj.put("recordId", recordId);
+		} else { //存在
 			resObj.put(ApiUtils.CODE, "46005");
-			resObj.put(ApiUtils.MSG, map.get("msg"));
-			return resObj;
+			resObj.put(ApiUtils.MSG, "RECORDID exists");
 		}
 		return resObj;
 	}
@@ -373,44 +323,25 @@ public class NeoService extends BaseService {
 			resObj.put(ApiUtils.MSG, ReturnCode.ERR_61451 + "|recordId can't be empty!");
 			return resObj;
 		}
-		NeoClient neoClient = new NeoClient();
-		Map<String, String>  map = neoClient.queryByKey(Constants.SCRIPT_SSI_RECORD, Constants.JSON_RPC_METHOD_CONTRACT, Constants.JSON_RPC_CONTRACT_GET, recordId);
-		String code = map.get("code");
-		if("1".equals(code)){  //接口调用成功
-			//根据ssid检索neoSsid是否存在
-			NeoRecord existNeoRecord = neoRecordDao.getNeoRecordByRid(recordId);
-			JSONObject rs = new JSONObject();
-			if(existNeoRecord == null){
-				String result = map.get("result");
-				if(StringUtils.isNotBlank(result)){
-					rs = JSONObject.fromObject(result);
-				} else {
-					rs.put("addressFrom", "");
-					rs.put("fromP2pId", "");
-					rs.put("addressTo", "");
-					rs.put("toP2pId", "");
-					rs.put("qlc", "");
-					rs.put("time", "");
-				}
-			} else {
-				rs.put("addressFrom", existNeoRecord.getAddressFrom());
-				rs.put("fromP2pId", existNeoRecord.getFormP2pId());
-				rs.put("addressTo", existNeoRecord.getAddressTo());
-				rs.put("toP2pId", existNeoRecord.getToP2pId());
-				rs.put("qlc", existNeoRecord.getQlc());
-				rs.put("qlc", existNeoRecord.getQlc());
-				rs.put("time",DateUtils.formatDateTime(existNeoRecord.getCreateDate()));
-			}
-			resObj.put(ApiUtils.DATA, rs);
-		}  else if("0".equals(code)){
-			resObj.put("code", "61456");
-			resObj.put("msg", ReturnCode.ERR_61456 + ":" +"Record does not exist! ");
-			return resObj;
-		} else { //接口调用不成功
-			resObj.put("code", "61450");
-			resObj.put("msg", ReturnCode.ERR_61450 + ":" +"Interface call failure!");
-			return resObj;
+		//根据ssid检索neoSsid是否存在
+		NeoRecord existNeoRecord = neoRecordDao.getNeoRecordByRid(recordId);
+		JSONObject rs = new JSONObject();
+		if(existNeoRecord == null){
+			rs.put("addressFrom", "");
+			rs.put("fromP2pId", "");
+			rs.put("addressTo", "");
+			rs.put("toP2pId", "");
+			rs.put("qlc", "");
+			rs.put("time","");
+		} else {
+			rs.put("addressFrom", existNeoRecord.getAddressFrom());
+			rs.put("fromP2pId", existNeoRecord.getFormP2pId());
+			rs.put("addressTo", existNeoRecord.getAddressTo());
+			rs.put("toP2pId", existNeoRecord.getToP2pId());
+			rs.put("qlc", existNeoRecord.getQlc());
+			rs.put("time",DateUtils.formatDateTime(existNeoRecord.getCreateDate()));
 		}
+		resObj.put(ApiUtils.DATA, rs);
 		return resObj;
 	}
 

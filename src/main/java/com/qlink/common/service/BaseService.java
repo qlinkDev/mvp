@@ -15,7 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
-import com.qlink.common.utils.neo.client.NeoClient;
 import com.qlink.modules.sys.entity.Role;
 import com.qlink.modules.sys.entity.User;
 
@@ -30,8 +29,6 @@ public abstract class BaseService {
 	 * 日志对象
 	 */
 	protected Logger logger = LoggerFactory.getLogger(getClass());
-	
-	protected NeoClient neoClient = new NeoClient();
 	
 	/**
 	 * 数据范围过滤

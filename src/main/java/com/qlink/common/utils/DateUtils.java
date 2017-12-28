@@ -258,6 +258,29 @@ public class DateUtils extends org.apache.commons.lang3.time.DateUtils {
 		return d.getActualMaximum(Calendar.DAY_OF_YEAR);
 	}
 	
+	 /** 
+	  * 返回二个时间相差的分分钟数,如果一个为空，返回为0；
+	 * @Description 
+	 * @param startDate
+	 * @param endDate
+	 * @return 
+	 * @return int  
+	 * @author shuxin
+	 * @date 2017年12月19日 下午5:04:12 
+	 */ 
+	public static long getMinutesDiff(String startDate){
+        long minute=0;
+        Calendar dateOne=Calendar.getInstance();
+        Calendar dateTwo=Calendar.getInstance();
+		dateOne.setTime(new Date());	//设置为当前系统时间 
+		dateTwo.setTime(DateUtils.parseDate(startDate));
+		long timeOne=dateOne.getTimeInMillis();
+		long timeTwo=dateTwo.getTimeInMillis();
+		minute=(timeOne-timeTwo)/(1000*60);//转化minute
+		System.out.println("相隔"+minute+"分钟");
+        return minute;
+   }
+	
 	/**
 	 * @param args
 	 * @throws ParseException
